@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tetris Mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            margin-top: 20px;
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            background-color: #000;
+        }
+        
+        #score {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 20px;
+            color: #333;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 24px;
+            font-weight: bold;
+            display: none;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            touch-action: manipulation;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .control-btn:active {
+            background-color: #555;
+        }
+
+        #rotate {
+            grid-column: 2;
+        }
+
+        #left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        #right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        #down {
+            grid-column: 2;
+            grid-row: 2;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: <span id="score-value">0</span></div>
+    <div id="game-container">
+        <canvas id="tetris" width="300" height="500"></canvas>
+        <div id="game-over">Game Over</div>
+    </div>
+    <div id="controls">
+        <button id="rotate" class="control-btn">↻</button>
+        <button id="left" class="control-btn">←</button>
+        <button id="down" class="control-btn">↓</button>
+        <button id="right" class="control-btn">→</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('tetris');
+        const context = canvas.getContext('2d');
+        const BLOCK_SIZE = Math.min(30, canvas.width / 10);
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = Math.floor(canvas.height / BLOCK_SIZE);
+        let score = 0;
+        let gameOver = false;
+        let dropInterval = 800;
+
+        // [Le reste du code JavaScript reste identique jusqu'aux contrôles]
+
+        // Ajout des contrôles tactiles
+        document.getElementById('left').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameOver && !isPaused) {
+                currentX--;
+                if (collision()) currentX++;
+                draw();
+            }
+        });
+
+        document.getElementById('right').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameOver && !isPaused) {
+                currentX++;
+                if (collision()) currentX--;
+                draw();
+            }
+        });
+
+        document.getElementById('down').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameOver && !isPaused) {
+                currentY++;
+                if (collision()) {
+                    currentY--;
+                    merge();
+                    clearLines();
+                    createPiece();
+                }
+                dropCounter = 0;
+                draw();
+            }
+        });
+
+        document.getElementById('rotate').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameOver && !isPaused) {
+                rotate();
+                draw();
+            }
+        });
+
+        // Désactiver le défilement sur mobile lors du toucher des boutons
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('touchstart', (e) => e.preventDefault());
+            btn.addEventListener('touchend', (e) => e.preventDefault());
+        });
+
+        // [Le reste du code JavaScript reste identique]
+    </script>
+</body>
+</html>
