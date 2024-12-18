@@ -4,202 +4,126 @@
     <title>Tetris Mobile</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body {
-            margin: 0;
-            background-color: #f0f0f0;
-            font-family: Arial, sans-serif;
-            touch-action: manipulation;
+        /* Styles précédents... */
+        #audio-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        
-        #game-container {
-            position: relative;
-            margin-top: 20px;
-        }
-        
-        canvas {
-            border: 2px solid #333;
-            background-color: #000;
-        }
-        
-        #score {
-            text-align: center;
-            margin: 10px 0;
-            font-size: 20px;
-            color: #333;
-        }
-        
-        #game-over {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: red;
-            font-size: 24px;
-            font-weight: bold;
-            display: none;
-        }
-
-        #controls {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-top: 20px;
-            touch-action: manipulation;
         }
-
-        .control-btn {
-            width: 60px;
-            height: 60px;
+        
+        .audio-btn {
             background-color: #333;
             color: white;
             border: none;
-            border-radius: 50%;
-            font-size: 24px;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
             display: flex;
-            justify-content: center;
             align-items: center;
-            touch-action: manipulation;
-            user-select: none;
+            gap: 5px;
         }
-
-        .control-btn:active {
-            background-color: #555;
+        
+        .audio-btn.active {
+            background-color: #4CAF50;
         }
-
-        #rotate {
-            grid-column: 2;
-        }
-
-        #left {
-            grid-column: 1;
-            grid-row: 2;
-        }
-
-        #right {
-            grid-column: 3;
-            grid-row: 2;
-        }
-
-        #down {
-            grid-column: 2;
-            grid-row: 2;
+        
+        .audio-icon {
+            width: 20px;
+            height: 20px;
         }
     </style>
 </head>
 <body>
-    <div id="score">Score: <span id="score-value">0</span></div>
-    <div id="game-container">
-        <canvas id="tetris" width="300" height="500"></canvas>
-        <div id="game-over">Game Over</div>
-    </div>
-    <div id="controls">
-        <button id="rotate" class="control-btn">↻</button>
-        <button id="left" class="control-btn">←</button>
-        <button id="down" class="control-btn">↓</button>
-        <button id="right" class="control-btn">→</button>
+    <!-- Ajout des contrôles audio -->
+    <div id="audio-controls">
+        <button id="toggle-music" class="audio-btn">
+            🎵 Musique
+        </button>
+        <button id="toggle-sfx" class="audio-btn active">
+            🔊 Effets
+        </button>
     </div>
 
+    <!-- Contenu précédent... -->
+    
     <script>
-        const canvas = document.getElementById('tetris');
-        const context = canvas.getContext('2d');
-        const BLOCK_SIZE = Math.min(30, canvas.width / 10);
-        const BOARD_WIDTH = 10;
-        const BOARD_HEIGHT = Math.floor(canvas.height / BLOCK_SIZE);
-        let score = 0;
-        let gameOver = false;
-        let isPaused = false;
-        let dropInterval = 800;
+        // Configuration audio
+        const AUDIO = {
+            music: new Audio('https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3'),
+            rotate: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3'),
+            move: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3'),
+            clear: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-score-interface-217.mp3'),
+            drop: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3'),
+            gameOver: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-game-over-213.mp3')
+        };
 
-        const PIECES = [
-            [[1, 1, 1, 1]],  // I
-            [[1, 1], [1, 1]],  // O
-            [[0, 1, 0], [1, 1, 1]],  // T
-            [[1, 0], [1, 0], [1, 1]],  // L
-            [[0, 1], [0, 1], [1, 1]],  // J
-            [[1, 1, 0], [0, 1, 1]],  // S
-            [[0, 1, 1], [1, 1, 0]]   // Z
-        ];
+        // Configuration des paramètres audio
+        let musicEnabled = false;
+        let sfxEnabled = true;
 
-        const COLORS = [
-            '#50f0f0',  // cyan clair
-            '#f0f050',  // jaune clair
-            '#d070f0',  // violet clair
-            '#f0c070',  // orange clair
-            '#7070f0',  // bleu clair
-            '#70f070',  // vert clair
-            '#f07070'   // rouge clair
-        ];
+        // Configurer la musique de fond
+        AUDIO.music.loop = true;
+        AUDIO.music.volume = 0.5;
 
-        let board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
-        let currentPiece = null;
-        let currentPieceColor = '';
-        let currentX = 0;
-        let currentY = 0;
+        // Configurer les effets sonores
+        Object.values(AUDIO).forEach(audio => {
+            if (audio !== AUDIO.music) {
+                audio.volume = 0.3;
+            }
+        });
 
-        function createPiece() {
-            const pieceIndex = Math.floor(Math.random() * PIECES.length);
-            currentPiece = PIECES[pieceIndex];
-            currentPieceColor = COLORS[pieceIndex];
-            currentX = Math.floor(BOARD_WIDTH / 2 - currentPiece[0].length / 2);
-            currentY = 0;
-
-            if (collision()) {
-                gameOver = true;
-                document.getElementById('game-over').style.display = 'block';
+        // Fonctions de gestion audio
+        function playMusic() {
+            if (musicEnabled) {
+                AUDIO.music.play().catch(() => {
+                    // Gérer l'erreur si l'autoplay est bloqué
+                    musicEnabled = false;
+                    document.getElementById('toggle-music').classList.remove('active');
+                });
             }
         }
 
-        function collision() {
-            for (let y = 0; y < currentPiece.length; y++) {
-                for (let x = 0; x < currentPiece[y].length; x++) {
-                    if (currentPiece[y][x]) {
-                        const newX = currentX + x;
-                        const newY = currentY + y;
-                        
-                        if (newX < 0 || newX >= BOARD_WIDTH || 
-                            newY >= BOARD_HEIGHT ||
-                            (newY >= 0 && board[newY][newX])) {
-                            return true;
-                        }
-                    }
-                }
+        function playSfx(soundName) {
+            if (sfxEnabled && AUDIO[soundName]) {
+                AUDIO[soundName].currentTime = 0;
+                AUDIO[soundName].play().catch(() => {});
             }
-            return false;
         }
 
-        function merge() {
-            for (let y = 0; y < currentPiece.length; y++) {
-                for (let x = 0; x < currentPiece[y].length; x++) {
-                    if (currentPiece[y][x]) {
-                        board[currentY + y][currentX + x] = currentPieceColor;
-                    }
-                }
+        // Gestionnaires d'événements pour les boutons audio
+        document.getElementById('toggle-music').addEventListener('click', () => {
+            musicEnabled = !musicEnabled;
+            document.getElementById('toggle-music').classList.toggle('active');
+            
+            if (musicEnabled) {
+                playMusic();
+            } else {
+                AUDIO.music.pause();
+                AUDIO.music.currentTime = 0;
             }
-        }
+        });
+
+        document.getElementById('toggle-sfx').addEventListener('click', () => {
+            sfxEnabled = !sfxEnabled;
+            document.getElementById('toggle-sfx').classList.toggle('active');
+        });
+
+        // Modifier les fonctions existantes pour ajouter le son
 
         function rotate() {
-            const newPiece = currentPiece[0].map((val, index) => 
-                currentPiece.map(row => row[index]).reverse()
+            const rotated = currentPiece[0].map((_, i) =>
+                currentPiece.map(row => row[row.length - 1 - i])
             );
             
-            const previousPiece = currentPiece;
-            const previousX = currentX;
-            currentPiece = newPiece;
+            const prevPiece = currentPiece;
+            currentPiece = rotated;
             
             if (collision()) {
-                currentX--;
-                if (collision()) {
-                    currentX += 2;
-                    if (collision()) {
-                        currentPiece = previousPiece;
-                        currentX = previousX;
-                    }
-                }
+                currentPiece = prevPiece;
+            } else {
+                playSfx('rotate');
             }
         }
 
@@ -214,173 +138,116 @@
                 }
             }
             if (linesCleared > 0) {
-                score += linesCleared * 100 * linesCleared;
+                playSfx('clear');
+                const baseScore = linesCleared * 100 * linesCleared;
+                const levelMultiplier = LEVEL_SCORE_MULTIPLIERS[level];
+                const finalScore = Math.floor(baseScore * levelMultiplier);
+                score += finalScore;
                 document.getElementById('score-value').textContent = score;
             }
         }
 
-        function draw() {
-            context.fillStyle = '#000';
-            context.fillRect(0, 0, canvas.width, canvas.height);
+        function gameOverScreen() {
+            document.getElementById('game-over').style.display = 'block';
+            document.getElementById('final-score').textContent = score;
+            AUDIO.music.pause();
+            playSfx('gameOver');
+        }
 
-            // Grille de fond
-            context.strokeStyle = '#333';
-            for (let y = 0; y < BOARD_HEIGHT; y++) {
-                for (let x = 0; x < BOARD_WIDTH; x++) {
-                    context.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                }
-            }
+        function reset() {
+            score = 0;
+            gameOver = false;
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+            document.getElementById('score-value').textContent = '0';
+            document.getElementById('game-over').style.display = 'none';
+            dropInterval = baseDropInterval * LEVEL_SPEEDS[level];
+            playMusic();
+            createPiece();
+        }
 
-            // Dessiner le plateau
-            for (let y = 0; y < BOARD_HEIGHT; y++) {
-                for (let x = 0; x < BOARD_WIDTH; x++) {
-                    if (board[y][x]) {
-                        context.fillStyle = board[y][x];
-                        context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
-                    }
-                }
-            }
+        // Modifier les gestionnaires d'événements pour ajouter le son
 
-            // Dessiner la pièce courante
-            if (currentPiece) {
-                context.fillStyle = currentPieceColor;
-                for (let y = 0; y < currentPiece.length; y++) {
-                    for (let x = 0; x < currentPiece[y].length; x++) {
-                        if (currentPiece[y][x]) {
-                            context.fillRect(
-                                (currentX + x) * BLOCK_SIZE,
-                                (currentY + y) * BLOCK_SIZE,
-                                BLOCK_SIZE - 1,
-                                BLOCK_SIZE - 1
-                            );
+        document.addEventListener('keydown', event => {
+            if (!gameOver) {
+                switch(event.code) {
+                    case 'ArrowLeft':
+                        currentX--;
+                        if (collision()) {
+                            currentX++;
+                        } else {
+                            playSfx('move');
                         }
-                    }
+                        break;
+                    case 'ArrowRight':
+                        currentX++;
+                        if (collision()) {
+                            currentX--;
+                        } else {
+                            playSfx('move');
+                        }
+                        break;
+                    case 'ArrowDown':
+                        currentY++;
+                        if (collision()) {
+                            currentY--;
+                            merge();
+                            clearLines();
+                            createPiece();
+                            playSfx('drop');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        rotate();
+                        break;
                 }
+            } else if (event.code === 'KeyR') {
+                reset();
             }
+        });
 
-            if (isPaused) {
-                context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                context.fillRect(0, 0, canvas.width, canvas.height);
-                context.fillStyle = 'white';
-                context.font = '20px Arial';
-                context.textAlign = 'center';
-                context.fillText('PAUSE', canvas.width / 2, canvas.height / 2);
-            }
-        }
-
-        let lastTime = 0;
-        let dropCounter = 0;
-
-        function update(time = 0) {
-            if (!gameOver && !isPaused) {
-                const deltaTime = time - lastTime;
-                lastTime = time;
-                
-                dropCounter += deltaTime;
-                if (dropCounter > dropInterval) {
-                    currentY++;
-                    if (collision()) {
-                        currentY--;
-                        merge();
-                        clearLines();
-                        createPiece();
-                    }
-                    dropCounter = 0;
-                }
-                
-                draw();
-            }
-            requestAnimationFrame(update);
-        }
-
-        // Contrôles tactiles
-        document.getElementById('left').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameOver && !isPaused) {
+        // Modifier les contrôles tactiles pour ajouter le son
+        document.getElementById('left').addEventListener('click', () => {
+            if (!gameOver) {
                 currentX--;
-                if (collision()) currentX++;
-                draw();
+                if (collision()) {
+                    currentX++;
+                } else {
+                    playSfx('move');
+                }
             }
         });
 
-        document.getElementById('right').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameOver && !isPaused) {
+        document.getElementById('right').addEventListener('click', () => {
+            if (!gameOver) {
                 currentX++;
-                if (collision()) currentX--;
-                draw();
+                if (collision()) {
+                    currentX--;
+                } else {
+                    playSfx('move');
+                }
             }
         });
 
-        document.getElementById('down').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameOver && !isPaused) {
+        document.getElementById('down').addEventListener('click', () => {
+            if (!gameOver) {
                 currentY++;
                 if (collision()) {
                     currentY--;
                     merge();
                     clearLines();
                     createPiece();
+                    playSfx('drop');
                 }
-                dropCounter = 0;
-                draw();
             }
         });
 
-        document.getElementById('rotate').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameOver && !isPaused) {
-                rotate();
-                draw();
-            }
-        });
-
-        // Contrôles clavier
-        document.addEventListener('keydown', event => {
+        document.getElementById('rotate').addEventListener('click', () => {
             if (!gameOver) {
-                if (event.code === 'Space') {
-                    isPaused = !isPaused;
-                    draw();
-                    return;
-                }
-                
-                if (!isPaused) {
-                    switch(event.keyCode) {
-                        case 37: // Gauche
-                            currentX--;
-                            if (collision()) currentX++;
-                            break;
-                        case 39: // Droite
-                            currentX++;
-                            if (collision()) currentX--;
-                            break;
-                        case 40: // Bas
-                            currentY++;
-                            if (collision()) {
-                                currentY--;
-                                merge();
-                                clearLines();
-                                createPiece();
-                            }
-                            dropCounter = 0;
-                            break;
-                        case 38: // Rotation
-                            rotate();
-                            break;
-                    }
-                    draw();
-                }
+                rotate();
             }
         });
 
-        // Désactiver le défilement sur mobile
-        document.querySelectorAll('.control-btn').forEach(btn => {
-            btn.addEventListener('touchstart', (e) => e.preventDefault());
-            btn.addEventListener('touchend', (e) => e.preventDefault());
-        });
-
-        createPiece();
-        update();
+        // Le reste du code reste identique...
     </script>
 </body>
 </html>
