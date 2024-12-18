@@ -4,113 +4,297 @@
     <title>Tetris Mobile</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        /* Styles précédents... */
-        #audio-controls {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            display: flex;
-            gap: 10px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
-        .audio-btn {
-            background-color: #333;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 5px 10px;
-            cursor: pointer;
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 5px;
+            color: #fff;
+            padding: 20px;
+            overflow: hidden;
         }
-        
-        .audio-btn.active {
-            background-color: #4CAF50;
+
+        #game-container {
+            position: relative;
+            margin-top: 20px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
         }
-        
-        .audio-icon {
-            width: 20px;
-            height: 20px;
+
+        canvas {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        #score-container {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .game-info {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            min-width: 120px;
+        }
+
+        .game-info span {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ecca3;
+            margin-top: 5px;
+        }
+
+        #level-select {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 300px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+
+        #level-select:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #level-select option {
+            background: #16213e;
+            color: white;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            border: none;
+            border-radius: 50%;
+            font-size: 28px;
+            color: white;
+            background: linear-gradient(135deg, #4ecca3 0%, #2c9c7c 100%);
+            box-shadow: 0 4px 15px rgba(78, 204, 163, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: manipulation;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(78, 204, 163, 0.2);
+        }
+
+        #rotate { grid-column: 2; }
+        #left { grid-column: 1; grid-row: 2; }
+        #right { grid-column: 3; grid-row: 2; }
+        #down { grid-column: 2; grid-row: 2; }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            animation: fadeIn 0.5s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        #game-over h2 {
+            color: #4ecca3;
+            margin-bottom: 20px;
+        }
+
+        #final-score {
+            font-size: 32px;
+            color: #fff;
+            margin: 10px 0;
+        }
+
+        .restart-hint {
+            color: #999;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
 <body>
-    <!-- Ajout des contrôles audio -->
-    <div id="audio-controls">
-        <button id="toggle-music" class="audio-btn">
-            🎵 Musique
-        </button>
-        <button id="toggle-sfx" class="audio-btn active">
-            🔊 Effets
-        </button>
+    <div id="score-container">
+        <div class="game-info">
+            Score
+            <span id="score-value">0</span>
+        </div>
+        <div class="game-info">
+            Niveau
+            <span id="level-value">1</span>
+        </div>
+    </div>
+    
+    <select id="level-select">
+        <option value="1">Niveau 1 - Débutant</option>
+        <option value="2">Niveau 2 - Facile</option>
+        <option value="3">Niveau 3 - Moyen</option>
+        <option value="4">Niveau 4 - Difficile</option>
+        <option value="5">Niveau 5 - Expert</option>
+    </select>
+
+    <div id="game-container">
+        <canvas id="tetris" width="300" height="500"></canvas>
+        <div id="game-over">
+            <h2>Game Over</h2>
+            Score Final: <span id="final-score">0</span>
+            <p class="restart-hint">Appuyez sur R pour recommencer</p>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button id="rotate" class="control-btn">↻</button>
+        <button id="left" class="control-btn">←</button>
+        <button id="down" class="control-btn">↓</button>
+        <button id="right" class="control-btn">→</button>
     </div>
 
-    <!-- Contenu précédent... -->
-    
     <script>
-        // Configuration audio
-        const AUDIO = {
-            music: new Audio('https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3'),
-            rotate: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3'),
-            move: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3'),
-            clear: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-score-interface-217.mp3'),
-            drop: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3'),
-            gameOver: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-game-over-213.mp3')
+        const canvas = document.getElementById('tetris');
+        const context = canvas.getContext('2d');
+        const BLOCK_SIZE = Math.min(30, canvas.width / 10);
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = Math.floor(canvas.height / BLOCK_SIZE);
+
+        let board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        let score = 0;
+        let level = 1;
+        let gameOver = false;
+        let dropCounter = 0;
+        let lastTime = 0;
+        let baseDropInterval = 800;
+        let dropInterval = baseDropInterval;
+
+        const COLORS = [
+            null,
+            '#FF6B6B', // Rouge
+            '#4ECCA3', // Vert
+            '#45B7D1', // Bleu
+            '#FFE66D', // Jaune
+            '#957DAD', // Violet
+            '#F7D794', // Orange
+            '#A8E6CF'  // Turquoise
+        ];
+
+        const PIECES = [
+            [[1, 1, 1, 1]],                    // I
+            [[1, 1], [1, 1]],                  // O
+            [[1, 1, 1], [0, 1, 0]],           // T
+            [[1, 1, 1], [1, 0, 0]],           // L
+            [[1, 1, 1], [0, 0, 1]],           // J
+            [[1, 1, 0], [0, 1, 1]],           // S
+            [[0, 1, 1], [1, 1, 0]]            // Z
+        ];
+
+        const LEVEL_SPEEDS = {
+            1: 1,
+            2: 0.8,
+            3: 0.6,
+            4: 0.4,
+            5: 0.25
         };
 
-        // Configuration des paramètres audio
-        let musicEnabled = false;
-        let sfxEnabled = true;
+        const LEVEL_SCORE_MULTIPLIERS = {
+            1: 1,
+            2: 1.5,
+            3: 2,
+            4: 2.5,
+            5: 3
+        };
 
-        // Configurer la musique de fond
-        AUDIO.music.loop = true;
-        AUDIO.music.volume = 0.5;
+        let currentPiece = null;
+        let currentX = 0;
+        let currentY = 0;
+        let currentColor = 1;
 
-        // Configurer les effets sonores
-        Object.values(AUDIO).forEach(audio => {
-            if (audio !== AUDIO.music) {
-                audio.volume = 0.3;
+        function createPiece() {
+            const pieceIndex = Math.floor(Math.random() * PIECES.length);
+            currentPiece = PIECES[pieceIndex];
+            currentColor = pieceIndex + 1;
+            currentX = Math.floor(BOARD_WIDTH / 2) - Math.floor(currentPiece[0].length / 2);
+            currentY = 0;
+
+            if (collision()) {
+                gameOver = true;
+                gameOverScreen();
             }
-        });
+        }
 
-        // Fonctions de gestion audio
-        function playMusic() {
-            if (musicEnabled) {
-                AUDIO.music.play().catch(() => {
-                    // Gérer l'erreur si l'autoplay est bloqué
-                    musicEnabled = false;
-                    document.getElementById('toggle-music').classList.remove('active');
+        function collision() {
+            for (let y = 0; y < currentPiece.length; y++) {
+                for (let x = 0; x < currentPiece[y].length; x++) {
+                    if (currentPiece[y][x] !== 0) {
+                        const boardX = currentX + x;
+                        const boardY = currentY + y;
+                        
+                        if (boardX < 0 || boardX >= BOARD_WIDTH ||
+                            boardY >= BOARD_HEIGHT ||
+                            (boardY >= 0 && board[boardY][boardX])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge() {
+            currentPiece.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        board[currentY + y][currentX + x] = currentColor;
+                    }
                 });
-            }
+            });
         }
-
-        function playSfx(soundName) {
-            if (sfxEnabled && AUDIO[soundName]) {
-                AUDIO[soundName].currentTime = 0;
-                AUDIO[soundName].play().catch(() => {});
-            }
-        }
-
-        // Gestionnaires d'événements pour les boutons audio
-        document.getElementById('toggle-music').addEventListener('click', () => {
-            musicEnabled = !musicEnabled;
-            document.getElementById('toggle-music').classList.toggle('active');
-            
-            if (musicEnabled) {
-                playMusic();
-            } else {
-                AUDIO.music.pause();
-                AUDIO.music.currentTime = 0;
-            }
-        });
-
-        document.getElementById('toggle-sfx').addEventListener('click', () => {
-            sfxEnabled = !sfxEnabled;
-            document.getElementById('toggle-sfx').classList.toggle('active');
-        });
-
-        // Modifier les fonctions existantes pour ajouter le son
 
         function rotate() {
             const rotated = currentPiece[0].map((_, i) =>
@@ -122,13 +306,12 @@
             
             if (collision()) {
                 currentPiece = prevPiece;
-            } else {
-                playSfx('rotate');
             }
         }
 
         function clearLines() {
             let linesCleared = 0;
+            
             for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
                 if (board[y].every(cell => cell)) {
                     board.splice(y, 1);
@@ -137,8 +320,8 @@
                     y++;
                 }
             }
+
             if (linesCleared > 0) {
-                playSfx('clear');
                 const baseScore = linesCleared * 100 * linesCleared;
                 const levelMultiplier = LEVEL_SCORE_MULTIPLIERS[level];
                 const finalScore = Math.floor(baseScore * levelMultiplier);
@@ -147,11 +330,58 @@
             }
         }
 
+        function drawBlock(x, y, color) {
+            context.fillStyle = color;
+            context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+            
+            // Effet de brillance
+            context.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE / 4);
+        }
+
+        function draw() {
+            context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Grille
+            context.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            for (let i = 0; i <= BOARD_WIDTH; i++) {
+                context.beginPath();
+                context.moveTo(i * BLOCK_SIZE, 0);
+                context.lineTo(i * BLOCK_SIZE, canvas.height);
+                context.stroke();
+            }
+            for (let i = 0; i <= BOARD_HEIGHT; i++) {
+                context.beginPath();
+                context.moveTo(0, i * BLOCK_SIZE);
+                context.lineTo(canvas.width, i * BLOCK_SIZE);
+                context.stroke();
+            }
+            
+            // Plateau
+            board.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        drawBlock(x, y, COLORS[value]);
+                    }
+                });
+            });
+            
+            // Pièce courante
+            if (currentPiece) {
+                currentPiece.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            drawBlock(currentX + x, currentY + y, COLORS[currentColor]);
+                        }
+                    });
+                });
+            }
+        }
+
         function gameOverScreen() {
             document.getElementById('game-over').style.display = 'block';
             document.getElementById('final-score').textContent = score;
-            AUDIO.music.pause();
-            playSfx('gameOver');
         }
 
         function reset() {
@@ -161,30 +391,42 @@
             document.getElementById('score-value').textContent = '0';
             document.getElementById('game-over').style.display = 'none';
             dropInterval = baseDropInterval * LEVEL_SPEEDS[level];
-            playMusic();
             createPiece();
         }
 
-        // Modifier les gestionnaires d'événements pour ajouter le son
+        function update(time = 0) {
+            if (!gameOver) {
+                const deltaTime = time - lastTime;
+                lastTime = time;
+                
+                dropCounter += deltaTime;
+                if (dropCounter > dropInterval) {
+                    currentY++;
+                    if (collision()) {
+                        currentY--;
+                        merge();
+                        clearLines();
+                        createPiece();
+                    }
+                    dropCounter = 0;
+                }
+                
+                draw();
+            }
+            requestAnimationFrame(update);
+        }
 
+        // Contrôles clavier
         document.addEventListener('keydown', event => {
             if (!gameOver) {
                 switch(event.code) {
                     case 'ArrowLeft':
                         currentX--;
-                        if (collision()) {
-                            currentX++;
-                        } else {
-                            playSfx('move');
-                        }
+                        if (collision()) currentX++;
                         break;
                     case 'ArrowRight':
                         currentX++;
-                        if (collision()) {
-                            currentX--;
-                        } else {
-                            playSfx('move');
-                        }
+                        if (collision()) currentX--;
                         break;
                     case 'ArrowDown':
                         currentY++;
@@ -193,61 +435,5 @@
                             merge();
                             clearLines();
                             createPiece();
-                            playSfx('drop');
                         }
-                        break;
-                    case 'ArrowUp':
-                        rotate();
-                        break;
-                }
-            } else if (event.code === 'KeyR') {
-                reset();
-            }
-        });
-
-        // Modifier les contrôles tactiles pour ajouter le son
-        document.getElementById('left').addEventListener('click', () => {
-            if (!gameOver) {
-                currentX--;
-                if (collision()) {
-                    currentX++;
-                } else {
-                    playSfx('move');
-                }
-            }
-        });
-
-        document.getElementById('right').addEventListener('click', () => {
-            if (!gameOver) {
-                currentX++;
-                if (collision()) {
-                    currentX--;
-                } else {
-                    playSfx('move');
-                }
-            }
-        });
-
-        document.getElementById('down').addEventListener('click', () => {
-            if (!gameOver) {
-                currentY++;
-                if (collision()) {
-                    currentY--;
-                    merge();
-                    clearLines();
-                    createPiece();
-                    playSfx('drop');
-                }
-            }
-        });
-
-        document.getElementById('rotate').addEventListener('click', () => {
-            if (!gameOver) {
-                rotate();
-            }
-        });
-
-        // Le reste du code reste identique...
-    </script>
-</body>
-</html>
+                        break
