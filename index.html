@@ -112,11 +112,188 @@
         const BOARD_HEIGHT = Math.floor(canvas.height / BLOCK_SIZE);
         let score = 0;
         let gameOver = false;
+        let isPaused = false;
         let dropInterval = 800;
 
-        // [Le reste du code JavaScript reste identique jusqu'aux contrôles]
+        const PIECES = [
+            [[1, 1, 1, 1]],  // I
+            [[1, 1], [1, 1]],  // O
+            [[0, 1, 0], [1, 1, 1]],  // T
+            [[1, 0], [1, 0], [1, 1]],  // L
+            [[0, 1], [0, 1], [1, 1]],  // J
+            [[1, 1, 0], [0, 1, 1]],  // S
+            [[0, 1, 1], [1, 1, 0]]   // Z
+        ];
 
-        // Ajout des contrôles tactiles
+        const COLORS = [
+            '#50f0f0',  // cyan clair
+            '#f0f050',  // jaune clair
+            '#d070f0',  // violet clair
+            '#f0c070',  // orange clair
+            '#7070f0',  // bleu clair
+            '#70f070',  // vert clair
+            '#f07070'   // rouge clair
+        ];
+
+        let board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        let currentPiece = null;
+        let currentPieceColor = '';
+        let currentX = 0;
+        let currentY = 0;
+
+        function createPiece() {
+            const pieceIndex = Math.floor(Math.random() * PIECES.length);
+            currentPiece = PIECES[pieceIndex];
+            currentPieceColor = COLORS[pieceIndex];
+            currentX = Math.floor(BOARD_WIDTH / 2 - currentPiece[0].length / 2);
+            currentY = 0;
+
+            if (collision()) {
+                gameOver = true;
+                document.getElementById('game-over').style.display = 'block';
+            }
+        }
+
+        function collision() {
+            for (let y = 0; y < currentPiece.length; y++) {
+                for (let x = 0; x < currentPiece[y].length; x++) {
+                    if (currentPiece[y][x]) {
+                        const newX = currentX + x;
+                        const newY = currentY + y;
+                        
+                        if (newX < 0 || newX >= BOARD_WIDTH || 
+                            newY >= BOARD_HEIGHT ||
+                            (newY >= 0 && board[newY][newX])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge() {
+            for (let y = 0; y < currentPiece.length; y++) {
+                for (let x = 0; x < currentPiece[y].length; x++) {
+                    if (currentPiece[y][x]) {
+                        board[currentY + y][currentX + x] = currentPieceColor;
+                    }
+                }
+            }
+        }
+
+        function rotate() {
+            const newPiece = currentPiece[0].map((val, index) => 
+                currentPiece.map(row => row[index]).reverse()
+            );
+            
+            const previousPiece = currentPiece;
+            const previousX = currentX;
+            currentPiece = newPiece;
+            
+            if (collision()) {
+                currentX--;
+                if (collision()) {
+                    currentX += 2;
+                    if (collision()) {
+                        currentPiece = previousPiece;
+                        currentX = previousX;
+                    }
+                }
+            }
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(BOARD_WIDTH).fill(0));
+                    linesCleared++;
+                    y++;
+                }
+            }
+            if (linesCleared > 0) {
+                score += linesCleared * 100 * linesCleared;
+                document.getElementById('score-value').textContent = score;
+            }
+        }
+
+        function draw() {
+            context.fillStyle = '#000';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Grille de fond
+            context.strokeStyle = '#333';
+            for (let y = 0; y < BOARD_HEIGHT; y++) {
+                for (let x = 0; x < BOARD_WIDTH; x++) {
+                    context.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                }
+            }
+
+            // Dessiner le plateau
+            for (let y = 0; y < BOARD_HEIGHT; y++) {
+                for (let x = 0; x < BOARD_WIDTH; x++) {
+                    if (board[y][x]) {
+                        context.fillStyle = board[y][x];
+                        context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                    }
+                }
+            }
+
+            // Dessiner la pièce courante
+            if (currentPiece) {
+                context.fillStyle = currentPieceColor;
+                for (let y = 0; y < currentPiece.length; y++) {
+                    for (let x = 0; x < currentPiece[y].length; x++) {
+                        if (currentPiece[y][x]) {
+                            context.fillRect(
+                                (currentX + x) * BLOCK_SIZE,
+                                (currentY + y) * BLOCK_SIZE,
+                                BLOCK_SIZE - 1,
+                                BLOCK_SIZE - 1
+                            );
+                        }
+                    }
+                }
+            }
+
+            if (isPaused) {
+                context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.fillStyle = 'white';
+                context.font = '20px Arial';
+                context.textAlign = 'center';
+                context.fillText('PAUSE', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        let lastTime = 0;
+        let dropCounter = 0;
+
+        function update(time = 0) {
+            if (!gameOver && !isPaused) {
+                const deltaTime = time - lastTime;
+                lastTime = time;
+                
+                dropCounter += deltaTime;
+                if (dropCounter > dropInterval) {
+                    currentY++;
+                    if (collision()) {
+                        currentY--;
+                        merge();
+                        clearLines();
+                        createPiece();
+                    }
+                    dropCounter = 0;
+                }
+                
+                draw();
+            }
+            requestAnimationFrame(update);
+        }
+
+        // Contrôles tactiles
         document.getElementById('left').addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (!gameOver && !isPaused) {
@@ -158,13 +335,52 @@
             }
         });
 
-        // Désactiver le défilement sur mobile lors du toucher des boutons
+        // Contrôles clavier
+        document.addEventListener('keydown', event => {
+            if (!gameOver) {
+                if (event.code === 'Space') {
+                    isPaused = !isPaused;
+                    draw();
+                    return;
+                }
+                
+                if (!isPaused) {
+                    switch(event.keyCode) {
+                        case 37: // Gauche
+                            currentX--;
+                            if (collision()) currentX++;
+                            break;
+                        case 39: // Droite
+                            currentX++;
+                            if (collision()) currentX--;
+                            break;
+                        case 40: // Bas
+                            currentY++;
+                            if (collision()) {
+                                currentY--;
+                                merge();
+                                clearLines();
+                                createPiece();
+                            }
+                            dropCounter = 0;
+                            break;
+                        case 38: // Rotation
+                            rotate();
+                            break;
+                    }
+                    draw();
+                }
+            }
+        });
+
+        // Désactiver le défilement sur mobile
         document.querySelectorAll('.control-btn').forEach(btn => {
             btn.addEventListener('touchstart', (e) => e.preventDefault());
             btn.addEventListener('touchend', (e) => e.preventDefault());
         });
 
-        // [Le reste du code JavaScript reste identique]
+        createPiece();
+        update();
     </script>
 </body>
 </html>
