@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Tetris Mobile</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * {
             margin: 0;
@@ -19,7 +19,6 @@
             align-items: center;
             color: #fff;
             padding: 20px;
-            overflow: hidden;
         }
 
         #game-container {
@@ -28,12 +27,12 @@
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
             border-radius: 10px;
             overflow: hidden;
+            background: rgba(0, 0, 0, 0.8);
         }
 
         canvas {
             background-color: rgba(0, 0, 0, 0.8);
             border-radius: 10px;
-            backdrop-filter: blur(5px);
         }
 
         #score-container {
@@ -44,7 +43,6 @@
             background: rgba(255, 255, 255, 0.1);
             padding: 15px;
             border-radius: 15px;
-            backdrop-filter: blur(10px);
         }
 
         .game-info {
@@ -73,8 +71,6 @@
             cursor: pointer;
             margin: 10px 0;
             width: 300px;
-            backdrop-filter: blur(5px);
-            transition: all 0.3s ease;
         }
 
         #level-select:hover {
@@ -94,7 +90,6 @@
             padding: 20px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 20px;
-            backdrop-filter: blur(5px);
         }
 
         .control-btn {
@@ -134,8 +129,6 @@
             border-radius: 20px;
             text-align: center;
             display: none;
-            animation: fadeIn 0.5s ease;
-            backdrop-filter: blur(10px);
         }
 
         #game-over h2 {
@@ -153,11 +146,6 @@
             color: #999;
             margin-top: 15px;
             font-size: 14px;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
         }
     </style>
 </head>
@@ -234,6 +222,11 @@
             [[0, 1, 1], [1, 1, 0]]            // Z
         ];
 
+        let currentPiece = null;
+        let currentX = 0;
+        let currentY = 0;
+        let currentColor = 1;
+
         const LEVEL_SPEEDS = {
             1: 1,
             2: 0.8,
@@ -249,11 +242,6 @@
             4: 2.5,
             5: 3
         };
-
-        let currentPiece = null;
-        let currentX = 0;
-        let currentY = 0;
-        let currentColor = 1;
 
         function createPiece() {
             const pieceIndex = Math.floor(Math.random() * PIECES.length);
@@ -330,49 +318,32 @@
             }
         }
 
-        function drawBlock(x, y, color) {
-            context.fillStyle = color;
-            context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
-            
-            // Effet de brillance
-            context.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE / 4);
-        }
-
         function draw() {
             context.fillStyle = 'rgba(0, 0, 0, 0.8)';
             context.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Grille
-            context.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            for (let i = 0; i <= BOARD_WIDTH; i++) {
-                context.beginPath();
-                context.moveTo(i * BLOCK_SIZE, 0);
-                context.lineTo(i * BLOCK_SIZE, canvas.height);
-                context.stroke();
-            }
-            for (let i = 0; i <= BOARD_HEIGHT; i++) {
-                context.beginPath();
-                context.moveTo(0, i * BLOCK_SIZE);
-                context.lineTo(canvas.width, i * BLOCK_SIZE);
-                context.stroke();
-            }
-            
-            // Plateau
+            // Dessin du plateau
             board.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
-                        drawBlock(x, y, COLORS[value]);
+                        context.fillStyle = COLORS[value];
+                        context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
                     }
                 });
             });
             
-            // Pièce courante
+            // Dessin de la pièce courante
             if (currentPiece) {
                 currentPiece.forEach((row, y) => {
                     row.forEach((value, x) => {
                         if (value !== 0) {
-                            drawBlock(currentX + x, currentY + y, COLORS[currentColor]);
+                            context.fillStyle = COLORS[currentColor];
+                            context.fillRect(
+                                (currentX + x) * BLOCK_SIZE,
+                                (currentY + y) * BLOCK_SIZE,
+                                BLOCK_SIZE - 1,
+                                BLOCK_SIZE - 1
+                            );
                         }
                     });
                 });
@@ -395,24 +366,22 @@
         }
 
         function update(time = 0) {
-            if (!gameOver) {
-                const deltaTime = time - lastTime;
-                lastTime = time;
-                
-                dropCounter += deltaTime;
-                if (dropCounter > dropInterval) {
-                    currentY++;
-                    if (collision()) {
-                        currentY--;
-                        merge();
-                        clearLines();
-                        createPiece();
-                    }
-                    dropCounter = 0;
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                currentY++;
+                if (collision()) {
+                    currentY--;
+                    merge();
+                    clearLines();
+                    createPiece();
                 }
-                
-                draw();
+                dropCounter = 0;
             }
+
+            draw();
             requestAnimationFrame(update);
         }
 
@@ -436,4 +405,42 @@
                             clearLines();
                             createPiece();
                         }
-                        break
+                        break;
+                    case 'ArrowUp':
+                        rotate();
+                        break;
+                }
+            } else if (event.code === 'KeyR') {
+                reset();
+            }
+        });
+
+        // Contrôles tactiles
+        document.getElementById('left').addEventListener('click', () => {
+            if (!gameOver) {
+                currentX--;
+                if (collision()) currentX++;
+            }
+        });
+
+        document.getElementById('right').addEventListener('click', () => {
+            if (!gameOver) {
+                currentX++;
+                if (collision()) currentX--;
+            }
+        });
+
+        document.getElementById('down').addEventListener('click', () => {
+            if (!gameOver) {
+                currentY++;
+                if (collision()) {
+                    currentY--;
+                    merge();
+                    clearLines();
+                    createPiece();
+                }
+            }
+        });
+
+        document.getElementById('rotate').addEventListener('click', () => {
+            if (!gameOver)
